@@ -1,9 +1,11 @@
+pandas
+numpy
+scikit-learn
+matplotlib
+seaborn
+joblib 
 Flask
 Flask-SocketIO
 python-socketio
-eventlet
-numpy 
+eventlet 
 paho-mqtt
-firebase-admin
-scikit-learn
-pandas
