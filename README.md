@@ -1,168 +1,170 @@
-# Construction Site Environmental Monitoring System
+## System Components
 
-This is a web-based application for real-time environmental monitoring and safety alerts on construction sites. It integrates with MQTT for sensor data, Firebase for data storage, and uses machine learning for anomaly detection. The UI displays environmental sensor data (temperature, humidity, CO₂ levels, gas concentration), an environmental safety index, and safety alerts, built with Tailwind CSS, Chart.js, and Socket.io for real-time updates.
+1. **Data Generation Script (`generate_data.py`)**: Generates synthetic training, test, and incident report data for model training and testing.
+2. **Model Training Script (`train.py`)**: Trains a LogisticRegression model to detect trend-based hazards using environmental and incident data.
+3. **Flask Application (`app.py`)**: Subscribes to MQTT topics, processes sensor data, generates immediate and trend-based hazard alerts, and provides a web dashboard for visualization.
 
 ## Prerequisites
 
-- **Python 3.8+**: Ensure Python is installed.
-- **pip**: Python package manager for installing dependencies.
-- **Firebase Account**: Required for database and storage integration.
-- **MQTT Broker**: An MQTT broker (e.g., Mosquitto) for sensor communication.
-- A modern web browser (e.g., Chrome, Firefox).
+- **Software**:
+  - Python 3.7+
+  - Internet connection to subscribe to the MQTT broker (`broker.emqx.io`)
+  - Web browser to access the Flask dashboard
+- **Data Source**:
+  - Environmental sensor data published to MQTT topics:
+    - `comp4436_gproj/sensor/temperature`
+    - `comp4436_gproj/sensor/humidity`
+    - `comp4436_gproj/sensor/air_quality`
+  - Ensure the MQTT broker is accessible and data is being published (e.g., by an external sensor system).
 
-## Setup Instructions
+## Installation
 
-Follow these steps to set up and run the application:
+1. Clone or download this project to your computer.
 
-### 1. Clone the Repository
+2. Navigate to the project directory:
 
-Clone the repository or ensure you have the project files (`app.py`, `templates/index.html`, `templates/all_alerts.html`, etc.) in a project directory.
-
-```bash
-git clone <repository-url>
-cd construction-site-monitoring
-```
-
-### 2. Create a Virtual Environment
-
-Create and activate a Python virtual environment to manage dependencies.
-
-```bash
-python -m venv venv
-```
-
-- **Windows**:
-
-  ```bash
-  venv\Scripts\activate
-  ```
-
-- **MacOS/Linux**:
-
-  ```bash
-  source venv/bin/activate
-  ```
-
-### 3. Install Dependencies
-
-Install the required Python packages listed in `requirements.txt`.
-
-```bash
-pip install -r requirements.txt
-```
-
-The `requirements.txt` includes:
-
-- `Flask`: Web framework.
-- `Flask-SocketIO`, `python-socketio`, `eventlet`: For real-time communication.
-- `numpy`, `pandas`, `scikit-learn`: For data processing and anomaly detection.
-- `paho-mqtt`: For MQTT communication with sensors.
-- `firebase-admin`: For Firebase database and storage.
-
-### 4. Configure Firebase
-
-1. Create a Firebase project at console.firebase.google.com.
-
-2. Generate a service account key:
-
-   - Go to Project Settings &gt; Service Accounts &gt; Generate New Private Key.
-   - Download the JSON key file (e.g., `serviceAccountKey.json`).
-
-3. Place the JSON key file in the project directory.
-
-4. Update `app.py` to point to the correct path of the Firebase credentials file, e.g.:
-
-   ```python
-   cred = credentials.Certificate("path/to/serviceAccountKey.json")
-   firebase_admin.initialize_app(cred, {
-       'databaseURL': '<your-firebase-database-url>',
-       'storageBucket': '<your-firebase-storage-bucket>'
-   })
+   ```bash
+   cd /path/to/project
    ```
 
-5. Ensure Firebase Realtime Database and Storage rules are configured to allow read/write access as needed.
+3. Create and activate a virtual environment (recommended):
 
-### 5. Configure MQTT Broker
-
-1. Set up an MQTT broker (e.g., Mosquitto) locally or on a server.
-
-2. Update `app.py` with the correct broker address and port, e.g.:
-
-   ```python
-   client = mqtt.Client()
-   client.connect("localhost", 1883, 60)
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-3. Ensure sensors or devices are publishing data to the MQTT topics subscribed to in `app.py`.
+4. Install required Python packages:
 
-### 6. Project Structure
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-Ensure your project directory has the following structure:
+## Setup
 
-```
-construction-site-monitoring/
-├── static/
-│   └── (custom CSS/JS, if any)
-├── templates/
-│   ├── index.html
-│   └── all_alerts.html
-├── app.py
-├── serviceAccountKey.json
-├── requirements.txt
-└── README.md
-```
+### 1. Generate Data (`generate_data.py`)
 
-- `app.py`: Main Flask application handling routes, Socket.io, MQTT, and Firebase.
-- `templates/`: HTML templates (`index.html`, `all_alerts.html`).
-- `static/`: For custom static files (not required since Tailwind CSS, Chart.js, etc., are CDN-based).
-- `serviceAccountKey.json`: Firebase service account credentials.
+This script creates synthetic environmental and incident data for training and testing the model.
 
-### 7. Run the Application
+1. Run the data generation script:
 
-Start the Flask application with the virtual environment activated.
+   ```bash
+   python generate_data.py
+   ```
 
-```bash
-python app.py
-```
+2. Outputs:
+   - `sensor_data/test_data.csv`: Synthetic environmental data for testing/monitoring
+   - `sensor_data/incident_reports.csv`: Synthetic incident reports for training (aligned with Jan 18–22, 2023)
 
-The application typically runs on `http://localhost:5000`. Check `app.py` for the configured port if different.
+3. Note: If you have historical environmental data, place it as `sensor_data/training_data.csv`. Otherwise, use synthetic data from this script.
 
-### 8. Open the Application
+### 2. Train the Model (`train.py`)
 
-Open a web browser and navigate to:
+This script trains a LogisticRegression model for trend-based hazard detection.
 
-```
-http://localhost:5000
-```
+1. Ensure `sensor_data/` contains:
+   - `training_data.csv` (historical or synthetic environmental data)
+   - `incident_reports.csv` (from `generate_data.py`)
 
-You should see the dashboard with:
+2. Run the training script:
 
-- Environmental monitoring data (temperature, humidity, CO₂, gas concentration).
-- Environmental safety index with a gauge and risk details.
-- Safety alerts with real-time updates.
+   ```bash
+   python train.py
+   ```
 
-Navigate to `/all-alerts` to view and filter all alerts by date, location, or severity.
+3. Outputs in `results/`:
+   - `baseline_stats.csv`: Baseline statistics for sensor data
+   - `scaler.joblib`: Trained StandardScaler
+   - `model.joblib`: Trained LogisticRegression model
 
-### 9. Accessing Features
+### 3. Set Up the Flask Application (`app.py`)
 
-- **Environmental Monitoring**: Real-time sensor data from MQTT.
-- **Environmental Safety Index**: Composite safety score with anomaly detection (via IsolationForest).
-- **Safety Alerts**: View, acknowledge, or delete alerts stored in Firebase.
-- **All Alerts Page**: Filter alerts by status, date, location, or severity.
+1. Ensure `results/` contains:
+   - `baseline_stats.csv`
+   - `scaler.joblib`
+   - `model.joblib` (from `train.py`)
+
+2. Optionally, place `incident_reports.csv` in `sensor_data/` for incident correlation analysis.
+
+3. Verify directory structure:
+
+   ```plaintext
+   project/
+   ├── app.py
+   ├── generate_data.py
+   ├── train.py
+   ├── requirements.txt
+   ├── results/
+   │   ├── baseline_stats.csv
+   │   ├── scaler.joblib
+   │   ├── model.joblib
+   ├── sensor_data/
+   │   ├── training_data.csv (optional)
+   │   ├── test_data.csv
+   │   ├── incident_reports.csv
+   ├── templates/
+   │   ├── index.html
+   │   ├── all_alerts.html
+   └── static/ (for CSS/JS if needed)
+   ```
+
+## Running the Application
+
+1. Ensure the MQTT broker (`broker.emqx.io`) is accessible and sensor data is being published to the specified topics.
+
+2. Start the Flask application:
+
+   ```bash
+   python app.py
+   ```
+
+3. Access the dashboard:
+   - Open a browser and navigate to `http://localhost:5000`
+   - For remote access, use `http://<your-computer-ip>:5000` (e.g., `http://192.168.1.100:5000`).
+
+4. The dashboard will:
+   - Display real-time sensor readings (temperature, humidity, CO2)
+   - Show up to three unacknowledged alerts (red for immediate hazards, yellow for trend-based)
+   - Provide visualizations of sensor data, moving averages, baselines, and risk probabilities
+   - Allow viewing all alerts at `/all-alerts`
+   - Support acknowledging or deleting alerts via the UI
+
+## Stopping the Application
+
+- Press `Ctrl+C` in the terminal to stop the Flask server.
+- The application will disconnect from the MQTT broker automatically.
 
 ## Troubleshooting
 
-- **Firebase Errors**: Verify the `serviceAccountKey.json` path and Firebase URLs in `app.py`. Check Firebase console for database/storage rule issues.
-- **MQTT Issues**: Ensure the MQTT broker is running and accessible. Verify topic subscriptions in `app.py`.
-- **Dependency Conflicts**: Update pip (`pip install --upgrade pip`) and retry installing `requirements.txt`.
-- **No Data Displayed**: Confirm MQTT sensors are publishing data and Firebase is receiving updates. Check `app.py` Socket.io events (`sensor_update`, `env_index_update`, `alerts_update`).
-- **Port Conflict**: If `port 5000` is in use, modify `app.py` to use another port, e.g., `app.run(port=5001)`.
+- **Data Generation (`generate_data.py`)**:
+  - Ensure `sensor_data/` and `results/` directories exist.
+  - Verify output files (`test_data.csv`, `incident_reports.csv`) are created.
+
+- **Model Training (`train.py`)**:
+  - Check that `training_data.csv` and `incident_reports.csv` are in `sensor_data/`.
+  - Ensure data formats match (`;` separator, comma decimals for environmental data).
+  - If training fails, verify sufficient risk labels (non-zero labels) in the data.
+
+- **Flask App (`app.py`)**:
+  - Confirm `results/` contains `baseline_stats.csv`, `scaler.joblib`, and `model.joblib`.
+  - Ensure `templates/index.html` and `templates/all_alerts.html` exist.
+  - If no data appears, verify MQTT topics are receiving data (`comp4436_gproj/sensor/*`).
+  - Check Flask console logs for errors related to MQTT connection or model loading.
+  - For port conflicts, edit `app.py` to change the port (e.g., `socketio.run(app, host='0.0.0.0', port=5001)`).
+
+- **MQTT Issues**:
+  - Ensure internet access to `broker.emqx.io:1883`.
+  - Verify the external sensor system is publishing to the correct MQTT topics.
+  - Use an MQTT client (e.g., `mosquitto_sub`) to test topic data:
+
+     ```bash
+     mosquitto_sub -h broker.emqx.io -t comp4436_gproj/sensor/#
+     ```
 
 ## Notes
 
-- The frontend uses CDN-hosted libraries (Tailwind CSS, Chart.js, Socket.io, Flatpickr), so no Node.js setup is required.
-- Ensure `app.py` handles Flask routes (`/`, `/all-alerts`), Socket.io events, MQTT subscriptions, and Firebase interactions.
-- The application supports dark mode via a theme toggle.
-- Machine learning (IsolationForest) requires sufficient data for anomaly detection; ensure sensor data is collected in Firebase or processed in `app.py`.
-
-For further assistance, refer to the Flask, Flask-SocketIO, Firebase Admin, or Paho MQTT documentation, or contact the project maintainer.
+- The system assumes sensor data is published to `broker.emqx.io` at the specified topics. Ensure the external sensor system is operational.
+- The Flask app uses a public MQTT broker for simplicity. For production, use a secure, private broker.
+- Synthetic data from `generate_data.py` simulates realistic conditions but should be replaced with real historical data (`training_data.csv`) when available.
+- The LogisticRegression model in `train.py` relies on incident-based labels. Ensure `incident_reports.csv` aligns with training data timelines.
+- CO2 data accuracy depends on the external sensor’s calibration (e.g., if using an MQ-135, it’s sensitive to multiple gases like ammonia or alcohol).
