@@ -1,12 +1,9 @@
-# Environmental Sensor Monitoring with MQTT
-
-This project reads temperature, humidity, and CO2 levels using a DHT11 sensor and an ADC connected via I2C, then publishes the data to an MQTT broker.
-
 ## Prerequisites
 
-- Raspberry Pi with Python 3
+- Raspberry Pi (2B/3B/3B+/4/Zero) with Python 3
+- [Emakefun RaspberryPi-Sensor-Board](https://github.com/emakefun/RaspberryPi-Sensor-Board) for ADC functionality 
 - DHT11 sensor connected to GPIO 26
-- I2C ADC device at address 0x24
+- MQ-135 gas sensor connected to the Emakefun sensor board’s ADC channel
 - Internet connection for MQTT communication
 
 ## Installation
@@ -27,36 +24,35 @@ This project reads temperature, humidity, and CO2 levels using a DHT11 sensor an
 
 ## Hardware Setup
 
-- Connect the DHT11 sensor to GPIO 26 (physical pin 37) on the Raspberry Pi.
+- Connect the Emakefun RaspberryPi-Sensor-Board to the Raspberry Pi
 
-- Connect the I2C ADC device to the I2C bus (SDA/SCL pins).
+- Connect the DHT11 sensor to GPIO 26 and MQ-135 sensor to A0 on the Emakefun RaspberryPi-Sensor-Board.
 
-- Ensure I2C is enabled on your Raspberry Pi:
+- Enable I2C on your Raspberry Pi:
 
   ```bash
   sudo raspi-config
   ```
 
-  Navigate to Interface Options &gt; I2C &gt; Enable
+  Navigate to Interface Options > I2C > Enable
+
+- Verify the sensor board is detected at I2C address 0x24:
+
+  ```bash
+  sudo i2cdetect -y 1
+  ```
 
 ## Running the Program
 
 1. Ensure your Raspberry Pi is connected to the internet.
 
-2. Run the script:
+2. Preheat the MQ-135 sensor for 24–48 hours in clean air to stabilize its readings (recommended for first use or after long storage).
+
+3. Run the script:
 
    ```bash
-   python sensor_mqtt.py
+   python rpi_sensor.py
    ```
-
-3. The program will:
-
-   - Connect to the public EMQX MQTT broker
-   - Read sensor data every few seconds
-   - Publish temperature, humidity, and CO2 readings to MQTT topics:
-     - comp4436_gproj/sensor/temperature
-     - comp4436_gproj/sensor/humidity
-     - comp4436_gproj/sensor/air_quality
 
 ## Stopping the Program
 
@@ -65,11 +61,20 @@ This project reads temperature, humidity, and CO2 levels using a DHT11 sensor an
 
 ## Troubleshooting
 
-- If you see "Reading error" messages, check the DHT11 sensor connections.
-- For I2C issues, verify the ADC address (0x24) and ensure I2C is enabled.
-- If MQTT connection fails, verify internet connectivity and the broker address (broker.emqx.io).
+- **DHT11 Reading Errors**: Check sensor connections, power (3.3V or 5V), and pull-up resistor. Retry after a few seconds, as DHT11 can be temperamental.
+- **I2C/ADC Issues**: Confirm the Emakefun sensor board is at address 0x24 using `i2cdetect`. Ensure I2C is enabled and `smbus2` is installed.
+- **MQ-135 Issues**:
+  - If readings are erratic, ensure the sensor is preheated (24–48 hours for initial use).
+  - Verify 5V power supply and correct ADC channel (0x10).
+  - Check for interference from other gases (e.g., alcohol, ammonia), as MQ-135 is not CO2-specific.
+- **MQTT Connection Issues**: Verify internet connectivity and the broker address (broker.emqx.io).
 
 ## Notes
 
-- The script uses a public MQTT broker for simplicity. For production, consider using a secure, private broker.
-- The CO2 calculation assumes a specific sensor voltage range; adjust the `get_co2_ppm` function if using a different sensor.
+- The Emakefun RaspberryPi-Sensor-Board enables ADC functionality for the MQ-135’s analog output, as the Raspberry Pi cannot read analog signals directly [Ref: Emakefun RaspberryPi-Sensor-Board](https://github.com/emakefun/RaspberryPi-Sensor-Board).
+- The MQ-135 is sensitive to multiple gases (CO2, ammonia, alcohol, etc.), so readings reflect general air quality, not CO2 alone. The `get_co2_ppm` function assumes a linear voltage-to-ppm conversion (400mV baseline, 50ppm per 16mV), which is a simplification. For accurate CO2 measurements:
+  - Calibrate in clean air (400 ppm CO2 baseline).
+  - Adjust calculations based on the MQ-135 datasheet and load resistor value (typically 10kΩ–47kΩ).
+  - Consider environmental factors like temperature and humidity (read from DHT11) for compensation.
+- The script uses a public MQTT broker for simplicity. For production, use a secure, private broker.
+- MQ-135 requires a stable 5V power source for its heater. Ensure your power supply can handle the current draw.
